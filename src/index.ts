@@ -1,5 +1,5 @@
 import Kanvas from "kanvasgl";
-import Game from "./Game.js";
+import Game from "./Game";
 
 const canvas = new Kanvas("canvas", innerWidth, innerHeight);
 canvas.background("skyblue");

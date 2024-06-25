@@ -1,5 +1,5 @@
 import type Kanvas from "kanvasgl";
-import Bird from "./Bird.js";
+import Bird from "./Bird";
 export default class Game {
     #private;
     constructor(canvas: Kanvas);
