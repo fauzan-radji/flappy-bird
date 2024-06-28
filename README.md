@@ -11,3 +11,9 @@ You can play the game [here](https://fauzan-radji.github.io/flappy-bird).
 ## Screenshot
 
 _[To be added]_
+
+## How to Play
+
+1. Click the mouse or press the `space bar` or `up arrow key` to make the bird jump.
+2. Avoid the pipes.
+3. Get the highest score possible.
