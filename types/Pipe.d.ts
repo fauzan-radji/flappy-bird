@@ -2,7 +2,7 @@ import { Vec2d } from "kanvasgl";
 export default class Pipe {
     #private;
     constructor(x: number, y: number);
-    update(): void;
+    update(deltaTime: number, speed: number): void;
     nextIfThereIsSpaceTo(rightBorder: number): Pipe | null;
     get left(): number;
     get right(): number;

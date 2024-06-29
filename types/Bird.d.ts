@@ -5,10 +5,12 @@ export default class Bird {
     reset(): void;
     jump(): void;
     update(): void;
+    incrementScore(): void;
     get position(): Vec2d;
     get size(): number;
     get left(): number;
     get right(): number;
     get top(): number;
     get bottom(): number;
+    get score(): number;
 }

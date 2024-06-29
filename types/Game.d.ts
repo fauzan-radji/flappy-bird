@@ -4,7 +4,9 @@ export default class Game {
     #private;
     constructor(canvas: Kanvas);
     reset(): void;
-    update(): void;
+    save(): void;
+    load(): void;
+    update(deltaTime: number): void;
     render(): void;
     get bird(): Bird;
     get isOver(): boolean;

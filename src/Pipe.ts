@@ -11,8 +11,8 @@ export default class Pipe {
     this.#position = new Vec2d(x, y);
   }
 
-  update() {
-    this.#position.subtract({ x: 2, y: 0 });
+  update(deltaTime: number, speed: number) {
+    this.#position.subtract(Vec2d.multiply({ x: 2, y: 0 }, deltaTime * speed));
   }
 
   nextIfThereIsSpaceTo(rightBorder: number): Pipe | null {
@@ -64,7 +64,7 @@ export default class Pipe {
     return this.#position;
   }
 
-  static #GAP = 100;
+  static #GAP = 150;
   static #SIZE = 50;
   static #GAP_BETWEEN_PIPES = 300;
   static #TOP_BOUNDARY = 0;

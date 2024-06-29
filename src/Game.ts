@@ -5,12 +5,16 @@ import Pipe from "./Pipe";
 export default class Game {
   #canvas: Kanvas;
   #bird: Bird;
+  #highScore = 0;
   #pipes: Pipe[] = [];
   #isOver: boolean = false;
+  #speed: number;
+  #passedTheNextPipe = false;
 
   constructor(canvas: Kanvas) {
     Pipe.TOP_BOUNDARY = 0;
     Pipe.BOTTOM_BOUNDARY = canvas.height;
+    this.#speed = Game.#SPEED;
 
     this.#canvas = canvas;
     this.#bird = new Bird(canvas.center.copy({ x: 100 }));
@@ -20,6 +24,8 @@ export default class Game {
       if (e.key === " " || e.key === "ArrowUp") this.#bird.jump();
     });
     window.addEventListener("click", () => this.#bird.jump());
+
+    this.load();
   }
 
   #generatePipes() {
@@ -36,15 +42,27 @@ export default class Game {
   }
 
   reset() {
+    this.save();
+    if (this.#bird.score > this.#highScore) this.#highScore = this.#bird.score;
     this.#bird.reset();
     this.#isOver = false;
     this.#pipes = this.#generatePipes();
+    this.#speed = Game.#SPEED;
   }
 
-  update() {
+  save() {
+    localStorage.setItem(Game.#KEY_HIGHSCORE, this.#highScore.toString());
+  }
+
+  load() {
+    this.#highScore = +(localStorage.getItem(Game.#KEY_HIGHSCORE) ?? 0);
+  }
+
+  update(deltaTime: number) {
+    this.#speed += 0.0001;
     this.#bird.update();
     for (const pipe of this.#pipes) {
-      pipe.update();
+      pipe.update(deltaTime, this.#speed);
     }
     if (this.#pipes[0].right < 0) this.#pipes.shift();
 
@@ -57,23 +75,34 @@ export default class Game {
     if (this.#bird.bottom >= this.#canvas.height || this.#bird.top <= 0)
       this.#isOver = true;
 
-    if (this.#hitTest()) this.#isOver = true;
+    const nextPipe = this.#getNextPipe();
+    if (nextPipe) {
+      if (nextPipe === this.#pipes[1]) {
+        if (!this.#passedTheNextPipe) {
+          this.#bird.incrementScore();
+          this.#passedTheNextPipe = true;
+        }
+      } else {
+        this.#passedTheNextPipe = false;
+      }
+      if (this.#hitTest(nextPipe)) this.#isOver = true;
+    }
+
+    if (this.#isOver) this.reset();
   }
 
-  #hitTest() {
-    const nextPipe = this.#getNextPipe();
-    if (!nextPipe) return false;
+  #hitTest(pipe: Pipe) {
     return (
-      this.#bird.right >= nextPipe.left &&
-      this.#bird.left <= nextPipe.right &&
-      (this.#bird.top <= nextPipe.bottomOfTopPart ||
-        this.#bird.bottom >= nextPipe.topOfBottomPart)
+      this.#bird.right >= pipe.left &&
+      this.#bird.left <= pipe.right &&
+      (this.#bird.top <= pipe.bottomOfTopPart ||
+        this.#bird.bottom >= pipe.topOfBottomPart)
     );
   }
 
   #getNextPipe() {
     return [this.#pipes[0], this.#pipes[1]].find(
-      (pipe) => pipe.right > this.#bird.position.x
+      (pipe) => pipe.right > this.#bird.left
     );
   }
 
@@ -100,6 +129,23 @@ export default class Game {
         .fill("#0f0")
         .stroke({ color: "black", width: 2 });
     }
+
+    // Draw the score
+
+    this.#canvas
+      .text({
+        text: `Best score: ${this.#highScore}`,
+        at: this.#canvas.center.copy().subtract({ x: 0, y: 130 }),
+        fillStyle: "#fff",
+        strokeStyle: "transparent",
+      })
+      .text({
+        text: this.#bird.score.toString(),
+        at: this.#canvas.center.copy().subtract({ x: 0, y: 100 }),
+        size: 36,
+        fillStyle: "#fff",
+        strokeStyle: "#fff",
+      });
   }
 
   get bird() {
@@ -109,4 +155,7 @@ export default class Game {
   get isOver() {
     return this.#isOver;
   }
+
+  static #SPEED = 1;
+  static #KEY_HIGHSCORE = "highscore";
 }

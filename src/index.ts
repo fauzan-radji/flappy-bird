@@ -4,14 +4,15 @@ import Game from "./Game";
 const canvas = new Kanvas("canvas", innerWidth, innerHeight);
 canvas.background("skyblue");
 const game = new Game(canvas);
-loop();
 
-function loop() {
-  game.update();
+let lastElapsedTime = 0;
+loop(0);
+function loop(elapsedTime: number) {
+  const deltaTime = (elapsedTime - lastElapsedTime) / 15;
+  lastElapsedTime = elapsedTime;
+  game.update(deltaTime);
 
   draw();
-  if (game.isOver) game.reset();
-
   requestAnimationFrame(loop);
 }
 
