@@ -1,7 +1,10 @@
 import { Vec2d } from "kanvasgl";
+import Rectangle from "./Rectangle";
 
 export default class Pipe {
   #position: Vec2d;
+  #top: Rectangle;
+  #bottom: Rectangle;
 
   constructor(x: number, y: number) {
     y = Math.min(
@@ -9,10 +12,35 @@ export default class Pipe {
       Math.max(Pipe.#TOP_BOUNDARY + Pipe.#GAP / 2 + Pipe.#PADDING, y)
     );
     this.#position = new Vec2d(x, y);
+    const halfSize = Pipe.#SIZE * 0.5;
+    const halfGap = Pipe.#GAP * 0.5;
+    this.#top = new Rectangle(
+      {
+        x: x - halfSize,
+        y: Pipe.#TOP_BOUNDARY,
+      },
+      {
+        x: x + halfSize,
+        y: y - halfGap,
+      }
+    );
+    this.#bottom = new Rectangle(
+      {
+        x: x - halfSize,
+        y: y + halfGap,
+      },
+      {
+        x: x + halfSize,
+        y: Pipe.#BOTTOM_BOUNDARY,
+      }
+    );
   }
 
   update(deltaTime: number, speed: number) {
-    this.#position.subtract(Vec2d.multiply({ x: 2, y: 0 }, deltaTime * speed));
+    const moveVector = Vec2d.multiply({ x: -2, y: 0 }, deltaTime * speed);
+    this.#top.move(moveVector);
+    this.#bottom.move(moveVector);
+    this.#position.add(moveVector);
   }
 
   nextIfThereIsSpaceTo(rightBorder: number): Pipe | null {
@@ -52,16 +80,12 @@ export default class Pipe {
     return this.#position.x + Pipe.#SIZE / 2;
   }
 
-  get bottomOfTopPart() {
-    return this.#position.y - Pipe.#GAP / 2;
+  get top() {
+    return this.#top;
   }
 
-  get topOfBottomPart() {
-    return this.#position.y + Pipe.#GAP / 2;
-  }
-
-  get position() {
-    return this.#position;
+  get bottom() {
+    return this.#bottom;
   }
 
   static #GAP = 150;

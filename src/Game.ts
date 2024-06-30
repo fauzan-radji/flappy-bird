@@ -1,6 +1,7 @@
 import type Kanvas from "kanvasgl";
 import Bird from "./Bird";
 import Pipe from "./Pipe";
+import Rectangle from "./Rectangle";
 
 export default class Game {
   #canvas: Kanvas;
@@ -10,10 +11,26 @@ export default class Game {
   #isOver: boolean = false;
   #speed: number;
   #passedTheNextPipe = false;
+  #top: number;
+  #bottom: number;
+  #ceiling: Rectangle;
+  #floor: Rectangle;
 
   constructor(canvas: Kanvas) {
-    Pipe.TOP_BOUNDARY = 0;
-    Pipe.BOTTOM_BOUNDARY = canvas.height;
+    const floorHeight = 20;
+    const ceilingHeight = 20;
+    this.#top = ceilingHeight;
+    this.#bottom = canvas.height - floorHeight;
+    this.#ceiling = new Rectangle(
+      { x: 0, y: 0 },
+      { x: canvas.width, y: this.#top }
+    );
+    this.#floor = new Rectangle(
+      { x: 0, y: this.#bottom },
+      { x: canvas.width, y: canvas.height }
+    );
+    Pipe.TOP_BOUNDARY = this.#top;
+    Pipe.BOTTOM_BOUNDARY = this.#bottom;
     this.#speed = Game.#SPEED;
 
     this.#canvas = canvas;
@@ -59,7 +76,7 @@ export default class Game {
   }
 
   update(deltaTime: number) {
-    this.#speed += 0.0001;
+    this.#speed += 0.001;
     this.#bird.update();
     for (const pipe of this.#pipes) {
       pipe.update(deltaTime, this.#speed);
@@ -72,7 +89,7 @@ export default class Game {
       if (pipeOrNull) this.#pipes.push(pipeOrNull);
     }
 
-    if (this.#bird.bottom >= this.#canvas.height || this.#bird.top <= 0)
+    if (this.#ceiling.collide(this.#bird) || this.#floor.collide(this.#bird))
       this.#isOver = true;
 
     const nextPipe = this.#getNextPipe();
@@ -91,13 +108,8 @@ export default class Game {
     if (this.#isOver) this.reset();
   }
 
-  #hitTest(pipe: Pipe) {
-    return (
-      this.#bird.right >= pipe.left &&
-      this.#bird.left <= pipe.right &&
-      (this.#bird.top <= pipe.bottomOfTopPart ||
-        this.#bird.bottom >= pipe.topOfBottomPart)
-    );
+  #hitTest({ top, bottom }: Pipe) {
+    return top.collide(this.#bird) || bottom.collide(this.#bird);
   }
 
   #getNextPipe() {
@@ -107,31 +119,35 @@ export default class Game {
   }
 
   render() {
-    // Draw the bird
+    // Draw the floor
     this.#canvas
       .beginPath()
-      .circle(this.bird.position, this.bird.size / 2)
+      .rect(this.#ceiling.topLeft, this.#ceiling.width, this.#ceiling.height)
+      .rect(this.#floor.topLeft, this.#floor.width, this.#floor.height)
       .closePath()
-      .fill("#ff0")
-      .stroke({ color: "black", width: 2 });
+      .fill("#0f0")
+      .stroke({ color: "#000", width: 2 });
 
     // Draw the pipes
-    for (const pipe of this.#pipes) {
+    for (const { top, bottom } of this.#pipes) {
       this.#canvas
         .beginPath()
-        .rect({ x: pipe.left, y: 0 }, Pipe.SIZE, pipe.bottomOfTopPart)
-        .rect(
-          { x: pipe.left, y: pipe.topOfBottomPart },
-          Pipe.SIZE,
-          this.#canvas.height - pipe.topOfBottomPart
-        )
+        .rect(top.topLeft, top.width, top.height)
+        .rect(bottom.topLeft, bottom.width, bottom.height)
         .closePath()
         .fill("#0f0")
         .stroke({ color: "black", width: 2 });
     }
 
-    // Draw the score
+    // Draw the bird
+    this.#canvas
+      .beginPath()
+      .circle(this.#bird.position, this.#bird.size / 2)
+      .closePath()
+      .fill("#ff0")
+      .stroke({ color: "black", width: 2 });
 
+    // Draw the score
     this.#canvas
       .text({
         text: `Best score: ${this.#highScore}`,

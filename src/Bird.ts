@@ -1,20 +1,29 @@
 import { type Vec2d } from "kanvasgl";
+import Rectangle from "./Rectangle";
 
-export default class Bird {
-  #initialPosition: Vec2d;
-  #position: Vec2d;
+export default class Bird extends Rectangle {
   #size: number;
   #velocity = 0;
   #score = 0;
 
   constructor(position: Vec2d, size: number = 20) {
-    this.#initialPosition = position;
-    this.#position = position.copy();
+    const halfSize = size * 0.5;
+    super(
+      {
+        x: position.x - halfSize,
+        y: position.y - halfSize,
+      },
+      {
+        x: position.x + halfSize,
+        y: position.y + halfSize,
+      }
+    );
+
     this.#size = size;
   }
 
   reset() {
-    this.#position.set(this.#initialPosition);
+    super.reset();
     this.#velocity = 0;
     this.#score = 0;
   }
@@ -28,35 +37,16 @@ export default class Bird {
       Math.min(this.#velocity + Bird.#GRAVITY, Bird.#MAX_VELOCITY),
       Bird.#MIN_VELOCITY
     );
-    this.#position.add({ x: 0, y: this.#velocity });
+    const moveVector = { x: 0, y: this.#velocity };
+    this.move(moveVector);
   }
 
   incrementScore() {
     this.#score++;
   }
 
-  get position() {
-    return this.#position;
-  }
-
   get size() {
     return this.#size;
-  }
-
-  get left() {
-    return this.#position.x - this.#size / 2;
-  }
-
-  get right() {
-    return this.#position.x + this.#size / 2;
-  }
-
-  get top() {
-    return this.#position.y - this.#size / 2;
-  }
-
-  get bottom() {
-    return this.#position.y + this.#size / 2;
   }
 
   get score() {

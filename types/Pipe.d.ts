@@ -1,4 +1,4 @@
-import { Vec2d } from "kanvasgl";
+import Rectangle from "./Rectangle";
 export default class Pipe {
     #private;
     constructor(x: number, y: number);
@@ -6,9 +6,8 @@ export default class Pipe {
     nextIfThereIsSpaceTo(rightBorder: number): Pipe | null;
     get left(): number;
     get right(): number;
-    get bottomOfTopPart(): number;
-    get topOfBottomPart(): number;
-    get position(): Vec2d;
+    get top(): Rectangle;
+    get bottom(): Rectangle;
     static set TOP_BOUNDARY(value: number);
     static set BOTTOM_BOUNDARY(value: number);
     static get SIZE(): number;
