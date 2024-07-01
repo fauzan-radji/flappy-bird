@@ -11,6 +11,16 @@
         height: 100vh;
         overflow: hidden;
       }
+
+      canvas {
+        position: absolute;
+      }
+
+      #network {
+        right: 0;
+        bottom: 0;
+        opacity: 0.8;
+      }
     </style>
     <script type="importmap">
       {
@@ -22,6 +32,7 @@
   </head>
   <body>
     <canvas id="canvas"></canvas>
+    <canvas id="network"></canvas>
 
     <script src="./bundle.js"></script>
   </body>

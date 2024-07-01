@@ -1,6 +1,9 @@
 import Kanvas from "kanvasgl";
 import Game from "./Game";
 
+const networkCanvas = new Kanvas("network", 600, 300);
+networkCanvas.background("#012");
+
 const canvas = new Kanvas("canvas", innerWidth, innerHeight);
 canvas.background("skyblue");
 const game = new Game(canvas);
@@ -19,6 +22,9 @@ function loop(elapsedTime: number) {
 function draw() {
   canvas.clear();
   game.render();
+
+  networkCanvas.clear();
+  game.renderNetwork(networkCanvas);
 }
 
 addEventListener("resize", () => {

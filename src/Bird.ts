@@ -1,12 +1,22 @@
 import { type Vec2d } from "kanvasgl";
 import Rectangle from "./Rectangle";
+import type Brain from "./Brain";
 
 export default class Bird extends Rectangle {
   #size: number;
   #velocity = 0;
   #score = 0;
+  #brain: Brain | null = null;
 
-  constructor(position: Vec2d, size: number = 20) {
+  constructor({
+    position,
+    size = 20,
+    brain,
+  }: {
+    position: Vec2d;
+    size?: number;
+    brain?: Brain;
+  }) {
     const halfSize = size * 0.5;
     super(
       {
@@ -20,6 +30,7 @@ export default class Bird extends Rectangle {
     );
 
     this.#size = size;
+    if (brain) this.#brain = brain;
   }
 
   reset() {
@@ -45,12 +56,20 @@ export default class Bird extends Rectangle {
     this.#score++;
   }
 
+  get normalizedVelocity() {
+    return (this.#velocity - Bird.#MIN_VELOCITY) / Bird.#MAX_VELOCITY;
+  }
+
   get size() {
     return this.#size;
   }
 
   get score() {
     return this.#score;
+  }
+
+  get brain() {
+    return this.#brain;
   }
 
   static #MAX_VELOCITY = 40;

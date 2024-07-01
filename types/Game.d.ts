@@ -8,6 +8,7 @@ export default class Game {
     load(): void;
     update(deltaTime: number): void;
     render(): void;
+    renderNetwork(canvas: Kanvas): void;
     get bird(): Bird;
     get isOver(): boolean;
 }
