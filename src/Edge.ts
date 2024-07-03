@@ -1,25 +1,33 @@
-import Node from "./Node";
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t;
+}
+
+export type SimpleEdge = number;
 
 export default class Edge {
-  #from: Node;
-  #to: Node;
   #weight: number;
 
-  constructor(from: Node, to: Node, weight: number) {
-    this.#from = from;
-    this.#to = to;
-    this.#weight = weight;
+  constructor() {
+    this.#weight = Math.random() * 2 - 1;
   }
 
-  get from() {
-    return this.#from;
+  mutate(rate: number): Edge {
+    const newEdge = new Edge();
+    newEdge.#weight = lerp(this.#weight, Math.random() * 2 - 1, rate);
+    return newEdge;
   }
 
-  get to() {
-    return this.#to;
+  toJSON(): SimpleEdge {
+    return this.#weight;
   }
 
   get weight() {
     return this.#weight;
+  }
+
+  static create(weight: SimpleEdge) {
+    const newEdge = new Edge();
+    newEdge.#weight = weight;
+    return newEdge;
   }
 }

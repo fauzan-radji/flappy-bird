@@ -6,7 +6,7 @@ export default class Bird extends Rectangle {
     constructor({ position, size, brain, }: {
         position: Vec2d;
         size?: number;
-        brain?: Brain;
+        brain: Brain;
     });
     reset(): void;
     jump(): void;
@@ -15,5 +15,5 @@ export default class Bird extends Rectangle {
     get normalizedVelocity(): number;
     get size(): number;
     get score(): number;
-    get brain(): Brain | null;
+    get brain(): Brain;
 }

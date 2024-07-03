@@ -1,14 +1,12 @@
 import type Kanvas from "kanvasgl";
-import Bird from "./Bird";
 export default class Game {
     #private;
-    constructor(canvas: Kanvas);
+    constructor(canvas: Kanvas, brainString: string);
     reset(): void;
     save(): void;
-    load(): void;
+    load(brainString: string): void;
     update(deltaTime: number): void;
     render(): void;
     renderNetwork(canvas: Kanvas): void;
-    get bird(): Bird;
     get isOver(): boolean;
 }

@@ -1,8 +1,9 @@
-import Node from "./Node";
+export type SimpleEdge = number;
 export default class Edge {
     #private;
-    constructor(from: Node, to: Node, weight: number);
-    get from(): Node;
-    get to(): Node;
+    constructor();
+    mutate(rate: number): Edge;
+    toJSON(): SimpleEdge;
     get weight(): number;
+    static create(weight: SimpleEdge): Edge;
 }

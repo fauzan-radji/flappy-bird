@@ -6,7 +6,8 @@ networkCanvas.background("#012");
 
 const canvas = new Kanvas("canvas", innerWidth, innerHeight);
 canvas.background("skyblue");
-const game = new Game(canvas);
+const brainString = await fetch("brain.json").then((res) => res.text());
+const game = new Game(canvas, brainString);
 
 let lastElapsedTime = 0;
 loop(0);

@@ -1,9 +1,17 @@
-import Layer from "./Layer";
-import Level from "./Level";
+import Layer, { SimpleLayer } from "./Layer";
+interface SimpleBrain {
+    input: number;
+    hidden: number[];
+    output: number;
+    layers: SimpleLayer[];
+}
 export default class Brain {
     #private;
-    constructor(inputs: number, hidden: number[], outputs: number);
+    constructor(input: number, hidden: number[], output: number);
     feedForward(inputs: number[]): number[];
-    get levels(): Level[];
+    mutate(rate: number): Brain;
+    toJSON(): SimpleBrain;
     get layers(): Layer[];
+    static from(brainString: string): Brain;
 }
+export {};
