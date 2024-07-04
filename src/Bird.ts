@@ -6,7 +6,7 @@ export default class Bird extends Rectangle {
   #size: number;
   #velocity = 0;
   #score = 0;
-  #brain: Brain;
+  #brain: Brain | null = null;
 
   constructor({
     position,
@@ -15,7 +15,7 @@ export default class Bird extends Rectangle {
   }: {
     position: Vec2d;
     size?: number;
-    brain: Brain;
+    brain: Brain | undefined;
   }) {
     const halfSize = size * 0.5;
     super(
@@ -30,7 +30,7 @@ export default class Bird extends Rectangle {
     );
 
     this.#size = size;
-    this.#brain = brain;
+    if (brain) this.#brain = brain;
   }
 
   reset() {

@@ -6,6 +6,7 @@ export interface SimpleNode {
 export default class Node {
     #private;
     constructor(edges: Edge[], bias?: number);
+    feedForward(input: Node[]): void;
     mutate(rate: number): Node;
     toJSON(): SimpleNode;
     set value(value: number);

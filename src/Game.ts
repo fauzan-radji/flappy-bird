@@ -5,6 +5,13 @@ import Rectangle from "./Rectangle";
 import Brain from "./Brain";
 import Generation from "./Generation";
 
+export enum GAME_MODE {
+  TRAIN,
+  TEST,
+  COMPETE,
+  PLAY,
+}
+
 export default class Game {
   #viewport: Rectangle;
   #canvas: Kanvas;
@@ -17,11 +24,15 @@ export default class Game {
   #bottom: number;
   #ceiling: Rectangle;
   #floor: Rectangle;
+  #bestBrain: Brain;
   #generation: Generation<Bird>;
-  #bestBrain: Brain | null = null;
+  #ai: Bird;
+  #player: Bird;
+  #mode: GAME_MODE = GAME_MODE.TEST;
 
   constructor(canvas: Kanvas, brainString: string) {
-    this.load(brainString);
+    this.load();
+    this.#bestBrain = Brain.load(brainString);
 
     this.#viewport = new Rectangle(
       { x: 0, y: 0 },
@@ -44,33 +55,34 @@ export default class Game {
     this.#speed = Game.#SPEED;
 
     this.#canvas = canvas;
+    this.#pipes = this.#generatePipes();
+
+    this.#ai = this.#generateBird(this.#bestBrain);
+    this.#player = this.#generateBird();
     this.#generation = new Generation(
       Game.#GENERATION_SIZE,
-      (parent) => {
-        return new Bird({
-          position: this.#viewport.position.copy({ x: 100 }),
-          brain:
-            parent && parent.brain
-              ? parent.brain.mutate(Game.#BRAIN_MUTATION_RATE)
-              : this.#bestBrain
-              ? this.#bestBrain.mutate(Game.#BRAIN_MUTATION_RATE)
-              : new Brain(
-                  Game.#BRAIN_INPUT,
-                  Game.#BRAIN_HIDDEN,
-                  Game.#BRAIN_OUTPUT
-                ),
-        });
-      },
+      (parent) =>
+        this.#generateBird(
+          parent && parent.brain
+            ? parent.brain.mutate(Game.#BRAIN_MUTATION_RATE)
+            : this.#bestBrain
+            ? this.#bestBrain.mutate(Game.#BRAIN_MUTATION_RATE)
+            : new Brain(
+                Game.#BRAIN_INPUT,
+                Game.#BRAIN_HIDDEN,
+                Game.#BRAIN_OUTPUT
+              )
+        ),
       (bird) => bird.score
     );
+    this.#generation.population[0] = this.#generateBird(this.#bestBrain);
+  }
 
-    if (this.#bestBrain) {
-      this.#generation.population[0] = new Bird({
-        position: this.#viewport.position.copy({ x: 100 }),
-        brain: this.#bestBrain,
-      });
-    }
-    this.#pipes = this.#generatePipes();
+  #generateBird(brain?: Brain): Bird {
+    return new Bird({
+      position: this.#viewport.position.copy({ x: 100 }),
+      brain,
+    });
   }
 
   #generatePipes() {
@@ -91,12 +103,27 @@ export default class Game {
 
   reset() {
     this.save();
-    const bestBird = this.#generation.best;
-    if (bestBird) {
-      if (bestBird.score > this.#highScore) this.#highScore = bestBird.score;
-      bestBird.reset();
+    let score = 0;
+    if (this.#mode === GAME_MODE.TRAIN) {
+      const bestBird = this.#generation.best;
+      if (bestBird) {
+        score = bestBird.score;
+        bestBird.reset();
+      }
+      this.#generation.nextGeneration();
+    } else if (this.#mode === GAME_MODE.TEST) {
+      score = this.#ai.score;
+      this.#ai.reset();
+    } else if (this.#mode === GAME_MODE.PLAY) {
+      score = this.#player.score;
+      this.#player.reset();
+    } else if (this.#mode === GAME_MODE.COMPETE) {
+      score = Math.max(this.#player.score, this.#ai.score);
+      this.#player.reset();
+      this.#ai.reset();
     }
-    this.#generation.nextGeneration();
+
+    if (score > this.#highScore) this.#highScore = score;
     this.#isOver = false;
     this.#pipes = this.#generatePipes();
     this.#speed = Game.#SPEED;
@@ -104,20 +131,14 @@ export default class Game {
 
   save() {
     localStorage.setItem(Game.#KEY_HIGHSCORE, this.#highScore.toString());
-    if (this.#generation.best) {
+    if (this.#generation.best && this.#generation.best.brain) {
       this.#bestBrain = this.#generation.best.brain;
-      localStorage.setItem(Game.#KEY_BRAIN, JSON.stringify(this.#bestBrain));
+      this.#bestBrain.save();
     }
   }
 
-  load(brainString: string) {
+  load() {
     this.#highScore = +(localStorage.getItem(Game.#KEY_HIGHSCORE) ?? 0);
-    let savedBrainString = localStorage.getItem(Game.#KEY_BRAIN);
-    if (!savedBrainString) {
-      localStorage.setItem(Game.#KEY_BRAIN, brainString);
-      savedBrainString = brainString;
-    }
-    this.#bestBrain = Brain.from(brainString);
   }
 
   update(deltaTime: number) {
@@ -125,37 +146,37 @@ export default class Game {
     for (const pipe of this.#pipes) {
       pipe.update(deltaTime, this.#speed);
     }
-    if (this.#pipes[0].right < 0) this.#pipes.shift();
-    const nextPipe = this.#getNextPipe();
-
-    this.#generation.population.forEach((bird, index) => {
-      bird.update();
-      const output = bird.brain?.feedForward([
-        bird.top / this.#viewport.height,
-        bird.bottom / this.#viewport.height,
-        bird.normalizedVelocity,
-        nextPipe.top.bottom / this.#viewport.height,
-        nextPipe.bottom.top / this.#viewport.height,
-        nextPipe.left / this.#viewport.width,
-        nextPipe.right / this.#viewport.width,
-      ]) || [0];
-      if (output[0] > 0.5) bird.jump();
-      if (this.#ceiling.collide(bird) || this.#floor.collide(bird))
-        this.#generation.eliminate(index);
-      if (this.#hitTest(nextPipe, bird)) this.#generation.eliminate(index);
-    });
-    this.#generation.update();
-
+    if (this.#pipes[0].right < this.#viewport.left) this.#pipes.shift();
     const lastPipe = this.#pipes.at(-1);
     if (lastPipe) {
       const pipeOrNull = lastPipe.nextIfThereIsSpaceTo(this.#viewport.right);
       if (pipeOrNull) this.#pipes.push(pipeOrNull);
     }
+    const nextPipe = this.#getNextPipe();
+
+    if (this.#mode === GAME_MODE.TRAIN) {
+      this.#generation.population.forEach((bird, index) => {
+        this.#updateBird(bird, nextPipe);
+        if (this.#ceiling.collide(bird) || this.#floor.collide(bird))
+          this.#generation.eliminate(index);
+        if (this.#hitTest(nextPipe, bird)) this.#generation.eliminate(index);
+      });
+      this.#generation.update();
+    } else if (this.#mode === GAME_MODE.TEST) {
+      this.#updateBird(this.#ai, nextPipe);
+      if (this.#ceiling.collide(this.#ai) || this.#floor.collide(this.#ai))
+        this.#isOver = true;
+      if (this.#hitTest(nextPipe, this.#ai)) this.#isOver = true;
+    }
 
     if (nextPipe === this.#pipes[1]) {
       if (!this.#passedTheNextPipe) {
-        for (const bird of this.#generation.population) {
-          bird.incrementScore();
+        if (this.#mode === GAME_MODE.TRAIN) {
+          for (const bird of this.#generation.population) {
+            bird.incrementScore();
+          }
+        } else if (this.#mode === GAME_MODE.TEST) {
+          this.#ai.incrementScore();
         }
         this.#passedTheNextPipe = true;
       }
@@ -163,8 +184,23 @@ export default class Game {
       this.#passedTheNextPipe = false;
     }
 
-    if (this.#generation.remaining === 0) this.#isOver = true;
+    if (this.#mode === GAME_MODE.TRAIN && this.#generation.remaining === 0)
+      this.#isOver = true;
     if (this.#isOver) this.reset();
+  }
+
+  #updateBird(bird: Bird, nextPipe: Pipe) {
+    bird.update();
+    const output = bird.brain?.feedForward([
+      bird.top / this.#viewport.height,
+      bird.bottom / this.#viewport.height,
+      bird.normalizedVelocity,
+      nextPipe.top.bottom / this.#viewport.height,
+      nextPipe.bottom.top / this.#viewport.height,
+      nextPipe.left / this.#viewport.width,
+      nextPipe.right / this.#viewport.width,
+    ]) || [0];
+    if (output[0] > 0.5) bird.jump();
   }
 
   #hitTest({ top, bottom }: Pipe, bird: Bird) {
@@ -178,27 +214,10 @@ export default class Game {
   }
 
   render() {
-    // Draw the floor
-    this.#canvas
-      .beginPath()
-      .rect(this.#ceiling.topLeft, this.#ceiling.width, this.#ceiling.height)
-      .rect(this.#floor.topLeft, this.#floor.width, this.#floor.height)
-      .closePath()
-      .fill("#0f0")
-      .stroke({ color: "#000", width: 2 });
+    this.#renderFloorAndCeiling();
+    this.#renderPipes();
 
-    // Draw the pipes
-    for (const { top, bottom } of this.#pipes) {
-      this.#canvas
-        .beginPath()
-        .rect(top.topLeft, top.width, top.height)
-        .rect(bottom.topLeft, bottom.width, bottom.height)
-        .closePath()
-        .fill("#0f0")
-        .stroke({ color: "black", width: 2 });
-    }
-
-    // Draw the next pipe
+    // Highlight the next pipe
     // const nextPipe = this.#getNextPipe();
     // this.#canvas
     //   .beginPath()
@@ -212,28 +231,68 @@ export default class Game {
     //   .fill("#f00")
     //   .stroke({ color: "black", width: 2 });
 
-    // Draw the bird
-    for (const bird of this.#generation.population) {
+    if (this.#mode === GAME_MODE.TRAIN) {
+      for (const bird of this.#generation.population) {
+        this.#renderBird(bird);
+      }
+      this.#renderBird(
+        this.#generation.best || this.#generation.population[0],
+        true
+      );
+
+      this.#renderScore(
+        this.#highScore,
+        this.#generation.best
+          ? this.#generation.best.score
+          : this.#generation.population[0].score
+      );
+    } else if (this.#mode === GAME_MODE.TEST) {
+      this.#renderBird(this.#ai);
+      this.#renderScore(this.#highScore, this.#ai.score);
+    }
+  }
+
+  #renderFloorAndCeiling() {
+    this.#canvas
+      .beginPath()
+      .rect(this.#ceiling.topLeft, this.#ceiling.width, this.#ceiling.height)
+      .rect(this.#floor.topLeft, this.#floor.width, this.#floor.height)
+      .closePath()
+      .fill("#0f0")
+      .stroke({ color: "#000", width: 2 });
+  }
+
+  #renderPipes() {
+    for (const { top, bottom } of this.#pipes) {
       this.#canvas
         .beginPath()
-        .circle(bird.position, bird.size * 0.5)
+        .rect(top.topLeft, top.width, top.height)
+        .rect(bottom.topLeft, bottom.width, bottom.height)
         .closePath()
-        .fill("#ff0")
+        .fill("#0f0")
         .stroke({ color: "black", width: 2 });
     }
+  }
 
-    // Draw the score
+  #renderBird(bird: Bird, highlight: boolean = false) {
+    this.#canvas
+      .beginPath()
+      .circle(bird.position, bird.size * 0.5)
+      .closePath()
+      .fill(highlight ? "#f00" : "#ff0")
+      .stroke({ color: "black", width: 2 });
+  }
+
+  #renderScore(highScore: number, score: number) {
     this.#canvas
       .text({
-        text: `Best score: ${this.#highScore}`,
+        text: `Best score: ${highScore}`,
         at: this.#canvas.center.copy().subtract({ x: 0, y: 130 }),
         fillStyle: "#fff",
         strokeStyle: "transparent",
       })
       .text({
-        text: this.#generation.best
-          ? this.#generation.best.score.toString()
-          : this.#generation.population[0].score.toString(),
+        text: score.toString(),
         at: this.#canvas.center.copy().subtract({ x: 0, y: 100 }),
         size: 36,
         fillStyle: "#fff",
@@ -242,33 +301,40 @@ export default class Game {
   }
 
   renderNetwork(canvas: Kanvas) {
-    const bird = this.#generation.best || this.#generation.population[0];
+    if (this.#mode === GAME_MODE.PLAY) return;
+    let bird;
+    if (this.#mode === GAME_MODE.TRAIN) {
+      bird = this.#generation.best || this.#generation.population[0];
+    } else {
+      bird = this.#ai;
+    }
     if (!bird.brain) return;
 
     const paddingX = 40;
-    const paddingTop = 60;
+    const paddingTop = this.#mode === GAME_MODE.TRAIN ? 60 : 10;
     const paddingBottom = 10;
     const nodeRadius = 10;
     const viewportWidth = canvas.width - 2 * paddingX - nodeRadius * 2;
     const viewportHeight =
       canvas.height - paddingTop - paddingBottom - nodeRadius * 2;
 
-    canvas.context.textAlign = "start";
-    canvas
-      .text({
-        text: `Generation: ${this.#generation.number}`,
-        at: { x: paddingX, y: paddingTop - 20 },
-        textAlign: "start",
-        fillStyle: "#fff",
-        strokeStyle: "transparent",
-      })
-      .text({
-        text: `Population: ${this.#generation.remaining}`,
-        at: { x: paddingX, y: paddingTop },
-        textAlign: "start",
-        fillStyle: "#fff",
-        strokeStyle: "transparent",
-      });
+    if (this.#mode === GAME_MODE.TRAIN) {
+      canvas
+        .text({
+          text: `Generation: ${this.#generation.number}`,
+          at: { x: paddingX, y: paddingTop - 20 },
+          textAlign: "start",
+          fillStyle: "#fff",
+          strokeStyle: "transparent",
+        })
+        .text({
+          text: `Population: ${this.#generation.remaining}`,
+          at: { x: paddingX, y: paddingTop },
+          textAlign: "start",
+          fillStyle: "#fff",
+          strokeStyle: "transparent",
+        });
+    }
 
     const xSpacing = viewportWidth / (bird.brain.layers.length - 1);
     let x = paddingX + nodeRadius;
@@ -333,7 +399,6 @@ export default class Game {
 
   static #SPEED = 1;
   static #KEY_HIGHSCORE = "highscore";
-  static #KEY_BRAIN = "brain";
   static #BRAIN_INPUT = 7;
   static #BRAIN_HIDDEN = [4];
   static #BRAIN_OUTPUT = 1;

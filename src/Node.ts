@@ -19,6 +19,14 @@ export default class Node {
     this.#edges = edges;
   }
 
+  feedForward(input: Node[]) {
+    const sum = this.#edges.reduce(
+      (sum, edge, i) => sum + input[i].#value * edge.weight,
+      0
+    );
+    this.#value = 1 / (1 + Math.exp(-sum - this.#bias));
+  }
+
   mutate(rate: number) {
     return new Node(
       this.#edges.map((edge) => edge.mutate(rate)),

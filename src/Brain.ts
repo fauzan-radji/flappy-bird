@@ -94,7 +94,7 @@ export default class Brain {
     return this.#layers;
   }
 
-  static from(brainString: string) {
+  static create(brainString: string) {
     const { input, hidden, output, layers } = JSON.parse(
       brainString
     ) as SimpleBrain;
@@ -105,4 +105,19 @@ export default class Brain {
     }
     return newBrain;
   }
+
+  save() {
+    localStorage.setItem(Brain.#KEY, JSON.stringify(this));
+  }
+
+  static load(brainString: string) {
+    let savedBrainString = localStorage.getItem(this.#KEY);
+    if (!savedBrainString) {
+      localStorage.setItem(this.#KEY, brainString);
+      savedBrainString = brainString;
+    }
+    return Brain.create(brainString);
+  }
+
+  static #KEY = "brain";
 }

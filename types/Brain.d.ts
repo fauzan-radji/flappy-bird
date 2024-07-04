@@ -12,6 +12,8 @@ export default class Brain {
     mutate(rate: number): Brain;
     toJSON(): SimpleBrain;
     get layers(): Layer[];
-    static from(brainString: string): Brain;
+    static create(brainString: string): Brain;
+    save(): void;
+    static load(brainString: string): Brain;
 }
 export {};

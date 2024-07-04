@@ -9,14 +9,9 @@ export default class Layer {
     this.#nodes = nodes;
   }
 
-  // TODO: Maybe I can move this to the Node class
   feedForward(input: Layer) {
     for (const node of this.#nodes) {
-      const sum = node.edges.reduce(
-        (sum, edge, i) => sum + input.#nodes[i].value * edge.weight,
-        0
-      );
-      node.value = 1 / (1 + Math.exp(-sum - node.bias));
+      node.feedForward(input.#nodes);
     }
   }
 

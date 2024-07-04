@@ -31,7 +31,6 @@ export default class Generation<T> {
       arguablyBestFitness > 0 &&
       (!this.#best || arguablyBestFitness > this.#fitness(this.#best))
     ) {
-      if (!this.#best) console.log("no best");
       this.#best = arguablyBest;
     }
   }
