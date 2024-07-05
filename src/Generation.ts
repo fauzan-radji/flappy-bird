@@ -11,7 +11,7 @@ export default class Generation<T> {
     createEntity: (parent?: T) => T,
     fitness: (entity: T) => number
   ) {
-    this.#number = 1;
+    this.#number = 0;
     this.#size = size;
     this.#population = Array.from({ length: size }, createEntity);
     this.#createEntity = createEntity;

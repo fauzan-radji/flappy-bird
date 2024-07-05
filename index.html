@@ -4,24 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Flappy Bird</title>
-    <style>
-      body {
-        margin: 0;
-        padding: 0;
-        height: 100vh;
-        overflow: hidden;
-      }
-
-      canvas {
-        position: absolute;
-      }
-
-      #network {
-        right: 0;
-        bottom: 0;
-        opacity: 0.8;
-      }
-    </style>
+    <link rel="stylesheet" href="assets/style.css" />
     <script type="importmap">
       {
         "imports": {
@@ -31,7 +14,21 @@
     </script>
   </head>
   <body>
-    <canvas id="canvas"></canvas>
+    <div class="start-screen" id="start-screen">
+      <h1>Flappy Bird</h1>
+      <div class="button-container">
+        <button id="resume" class="hidden">Resume</button>
+        <button id="single-player">Single Player</button>
+        <button id="versus-ai">VS AI</button>
+        <button id="train-ai">Train AI</button>
+      </div>
+    </div>
+
+    <div class="action-container hidden" id="action-container">
+      <button id="pause">Pause</button>
+    </div>
+
+    <canvas id="game"></canvas>
     <canvas id="network"></canvas>
 
     <script src="./bundle.js"></script>

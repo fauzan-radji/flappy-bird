@@ -17,11 +17,10 @@ export default class Game {
   #canvas: Kanvas;
   #highScore = 0;
   #pipes: Pipe[] = [];
+  #paused: boolean = false;
   #isOver: boolean = false;
   #speed: number;
   #passedTheNextPipe = false;
-  #top: number;
-  #bottom: number;
   #ceiling: Rectangle;
   #floor: Rectangle;
   #bestBrain: Brain;
@@ -34,24 +33,14 @@ export default class Game {
     this.load();
     this.#bestBrain = Brain.load(brainString);
 
-    this.#viewport = new Rectangle(
-      { x: 0, y: 0 },
-      { x: canvas.width, y: canvas.height }
+    const { viewport, ceiling, floor } = this.#resize(
+      canvas.width,
+      canvas.height
     );
-    const floorHeight = 20;
-    const ceilingHeight = 20;
-    this.#top = this.#viewport.top + ceilingHeight;
-    this.#bottom = this.#viewport.bottom - floorHeight;
-    this.#ceiling = new Rectangle(
-      { x: 0, y: 0 },
-      { x: this.#viewport.right, y: this.#top }
-    );
-    this.#floor = new Rectangle(
-      { x: 0, y: this.#bottom },
-      { x: this.#viewport.right, y: this.#viewport.bottom }
-    );
-    Pipe.TOP_BOUNDARY = this.#top;
-    Pipe.BOTTOM_BOUNDARY = this.#bottom;
+    this.#viewport = viewport;
+    this.#ceiling = ceiling;
+    this.#floor = floor;
+
     this.#speed = Game.#SPEED;
 
     this.#canvas = canvas;
@@ -76,6 +65,12 @@ export default class Game {
       (bird) => bird.score
     );
     this.#generation.population[0] = this.#generateBird(this.#bestBrain);
+
+    window.addEventListener("keydown", (event) => {
+      if ([" ", "ArrowUp"].includes(event.key)) {
+        this.#player.jump();
+      }
+    });
   }
 
   #generateBird(brain?: Brain): Bird {
@@ -101,29 +96,52 @@ export default class Game {
     return pipes;
   }
 
+  resize(width: number, height: number) {
+    const { viewport, ceiling, floor } = this.#resize(width, height);
+    this.#viewport = viewport;
+    this.#ceiling = ceiling;
+    this.#floor = floor;
+  }
+
+  #resize(width: number, height: number) {
+    const viewport = new Rectangle({ x: 0, y: 0 }, { x: width, y: height });
+    const floorHeight = 20;
+    const ceilingHeight = 20;
+    const top = viewport.top + ceilingHeight;
+    const bottom = viewport.bottom - floorHeight;
+    const ceiling = new Rectangle(
+      { x: 0, y: 0 },
+      { x: viewport.right, y: top }
+    );
+    const floor = new Rectangle(
+      { x: 0, y: bottom },
+      { x: viewport.right, y: viewport.bottom }
+    );
+    Pipe.TOP_BOUNDARY = top;
+    Pipe.BOTTOM_BOUNDARY = bottom;
+
+    return { viewport, ceiling, floor };
+  }
+
   reset() {
-    this.save();
     let score = 0;
-    if (this.#mode === GAME_MODE.TRAIN) {
-      const bestBird = this.#generation.best;
-      if (bestBird) {
-        score = bestBird.score;
-        bestBird.reset();
-      }
-      this.#generation.nextGeneration();
-    } else if (this.#mode === GAME_MODE.TEST) {
-      score = this.#ai.score;
-      this.#ai.reset();
-    } else if (this.#mode === GAME_MODE.PLAY) {
-      score = this.#player.score;
-      this.#player.reset();
-    } else if (this.#mode === GAME_MODE.COMPETE) {
-      score = Math.max(this.#player.score, this.#ai.score);
-      this.#player.reset();
-      this.#ai.reset();
+    for (const bird of this.#generation.population) {
+      score = Math.max(score, bird.score);
+      bird.reset();
     }
 
+    if (this.#mode === GAME_MODE.TRAIN) {
+      this.#generation.nextGeneration();
+    } else if (this.#mode === GAME_MODE.PLAY) {
+      score = this.#player.score;
+    } else if (this.#mode === GAME_MODE.COMPETE) {
+      score = this.#player.score;
+    }
+    this.#ai.reset();
+    this.#player.reset();
+
     if (score > this.#highScore) this.#highScore = score;
+    this.save();
     this.#isOver = false;
     this.#pipes = this.#generatePipes();
     this.#speed = Game.#SPEED;
@@ -131,7 +149,11 @@ export default class Game {
 
   save() {
     localStorage.setItem(Game.#KEY_HIGHSCORE, this.#highScore.toString());
-    if (this.#generation.best && this.#generation.best.brain) {
+    if (
+      this.#mode === GAME_MODE.TRAIN &&
+      this.#generation.best &&
+      this.#generation.best.brain
+    ) {
       this.#bestBrain = this.#generation.best.brain;
       this.#bestBrain.save();
     }
@@ -142,6 +164,7 @@ export default class Game {
   }
 
   update(deltaTime: number) {
+    if (this.#paused) return;
     this.#speed += 0.0001;
     for (const pipe of this.#pipes) {
       pipe.update(deltaTime, this.#speed);
@@ -157,16 +180,47 @@ export default class Game {
     if (this.#mode === GAME_MODE.TRAIN) {
       this.#generation.population.forEach((bird, index) => {
         this.#updateBird(bird, nextPipe);
-        if (this.#ceiling.collide(bird) || this.#floor.collide(bird))
+        if (
+          this.#ceiling.collide(bird) ||
+          this.#floor.collide(bird) ||
+          this.#hitTest(nextPipe, bird)
+        )
           this.#generation.eliminate(index);
-        if (this.#hitTest(nextPipe, bird)) this.#generation.eliminate(index);
       });
       this.#generation.update();
     } else if (this.#mode === GAME_MODE.TEST) {
       this.#updateBird(this.#ai, nextPipe);
-      if (this.#ceiling.collide(this.#ai) || this.#floor.collide(this.#ai))
+      if (
+        this.#ceiling.collide(this.#ai) ||
+        this.#floor.collide(this.#ai) ||
+        this.#hitTest(nextPipe, this.#ai)
+      )
         this.#isOver = true;
-      if (this.#hitTest(nextPipe, this.#ai)) this.#isOver = true;
+    } else if (this.#mode === GAME_MODE.PLAY) {
+      this.#updateBird(this.#player, nextPipe);
+      if (
+        this.#ceiling.collide(this.#player) ||
+        this.#floor.collide(this.#player) ||
+        this.#hitTest(nextPipe, this.#player)
+      )
+        this.#isOver = true;
+    } else if (this.#mode === GAME_MODE.COMPETE) {
+      this.#updateBird(this.#ai, nextPipe);
+      this.#updateBird(this.#player, nextPipe);
+      if (
+        this.#ceiling.collide(this.#ai) ||
+        this.#floor.collide(this.#ai) ||
+        this.#hitTest(nextPipe, this.#ai)
+      ) {
+        this.#isOver = true;
+      }
+      if (
+        this.#ceiling.collide(this.#player) ||
+        this.#floor.collide(this.#player) ||
+        this.#hitTest(nextPipe, this.#player)
+      ) {
+        this.#isOver = true;
+      }
     }
 
     if (nextPipe === this.#pipes[1]) {
@@ -175,8 +229,11 @@ export default class Game {
           for (const bird of this.#generation.population) {
             bird.incrementScore();
           }
-        } else if (this.#mode === GAME_MODE.TEST) {
+        } else if (this.#mode === GAME_MODE.PLAY) {
+          this.#player.incrementScore();
+        } else if (this.#mode === GAME_MODE.COMPETE) {
           this.#ai.incrementScore();
+          this.#player.incrementScore();
         }
         this.#passedTheNextPipe = true;
       }
@@ -237,7 +294,7 @@ export default class Game {
       }
       this.#renderBird(
         this.#generation.best || this.#generation.population[0],
-        true
+        { highlight: true }
       );
 
       this.#renderScore(
@@ -246,9 +303,18 @@ export default class Game {
           ? this.#generation.best.score
           : this.#generation.population[0].score
       );
-    } else if (this.#mode === GAME_MODE.TEST) {
+    }
+    if (this.#mode === GAME_MODE.TEST) {
       this.#renderBird(this.#ai);
-      this.#renderScore(this.#highScore, this.#ai.score);
+    }
+    if (this.#mode === GAME_MODE.PLAY) {
+      this.#renderBird(this.#player);
+      this.#renderScore(this.#highScore, this.#player.score);
+    }
+    if (this.#mode === GAME_MODE.COMPETE) {
+      this.#renderBird(this.#ai, { text: "AI" });
+      this.#renderBird(this.#player, { text: "You", highlight: true });
+      this.#renderScore(this.#highScore, this.#player.score);
     }
   }
 
@@ -274,13 +340,27 @@ export default class Game {
     }
   }
 
-  #renderBird(bird: Bird, highlight: boolean = false) {
+  #renderBird(
+    bird: Bird,
+    { text, highlight = false }: { text?: string; highlight?: boolean } = {}
+  ) {
     this.#canvas
       .beginPath()
       .circle(bird.position, bird.size * 0.5)
       .closePath()
       .fill(highlight ? "#f00" : "#ff0")
       .stroke({ color: "black", width: 2 });
+
+    if (text) {
+      this.#canvas.text({
+        text,
+        at: bird.position.copy().subtract({ x: 0, y: bird.size + 5 }),
+        size: 16,
+        fillStyle: "#fff",
+        strokeStyle: "transparent",
+        font: "monogram",
+      });
+    }
   }
 
   #renderScore(highScore: number, score: number) {
@@ -288,20 +368,28 @@ export default class Game {
       .text({
         text: `Best score: ${highScore}`,
         at: this.#canvas.center.copy().subtract({ x: 0, y: 130 }),
+        size: 32,
         fillStyle: "#fff",
         strokeStyle: "transparent",
+        font: "monogram",
       })
       .text({
         text: score.toString(),
         at: this.#canvas.center.copy().subtract({ x: 0, y: 100 }),
-        size: 36,
+        size: 56,
         fillStyle: "#fff",
         strokeStyle: "#fff",
+        font: "monogram",
       });
   }
 
   renderNetwork(canvas: Kanvas) {
-    if (this.#mode === GAME_MODE.PLAY) return;
+    if (this.#mode === GAME_MODE.PLAY) {
+      canvas.canvas.style.display = "none";
+    } else {
+      canvas.canvas.style.display = "block";
+    }
+
     let bird;
     if (this.#mode === GAME_MODE.TRAIN) {
       bird = this.#generation.best || this.#generation.population[0];
@@ -310,10 +398,11 @@ export default class Game {
     }
     if (!bird.brain) return;
 
-    const paddingX = 40;
-    const paddingTop = this.#mode === GAME_MODE.TRAIN ? 60 : 10;
-    const paddingBottom = 10;
-    const nodeRadius = 10;
+    const paddingX = canvas.width / 20;
+    const paddingTop =
+      canvas.height / (this.#mode === GAME_MODE.TRAIN ? 5 : 30); // 60 : 10
+    const paddingBottom = canvas.height / 30;
+    const nodeRadius = canvas.height / 30; // 10
     const viewportWidth = canvas.width - 2 * paddingX - nodeRadius * 2;
     const viewportHeight =
       canvas.height - paddingTop - paddingBottom - nodeRadius * 2;
@@ -322,17 +411,21 @@ export default class Game {
       canvas
         .text({
           text: `Generation: ${this.#generation.number}`,
-          at: { x: paddingX, y: paddingTop - 20 },
+          at: { x: paddingX, y: paddingTop - canvas.height / 10 },
+          size: canvas.height / 12.5,
           textAlign: "start",
           fillStyle: "#fff",
           strokeStyle: "transparent",
+          font: "monogram",
         })
         .text({
           text: `Population: ${this.#generation.remaining}`,
-          at: { x: paddingX, y: paddingTop },
+          at: { x: paddingX, y: paddingTop - canvas.height / 30 },
+          size: canvas.height / 12.5,
           textAlign: "start",
           fillStyle: "#fff",
           strokeStyle: "transparent",
+          font: "monogram",
         });
     }
 
@@ -391,6 +484,30 @@ export default class Game {
 
       x += xSpacing;
     }
+  }
+
+  singlePlayer() {
+    this.#mode = GAME_MODE.PLAY;
+  }
+
+  versusAI() {
+    this.#mode = GAME_MODE.COMPETE;
+  }
+
+  trainAI() {
+    this.#mode = GAME_MODE.TRAIN;
+  }
+
+  pause() {
+    this.#paused = true;
+  }
+
+  resume() {
+    this.#paused = false;
+  }
+
+  get paused() {
+    return this.#paused;
   }
 
   get isOver() {

@@ -1,0 +1,101 @@
+@font-face {
+  font-family: monogram;
+  src: url(monogram-extended.ttf);
+}
+
+body,
+body * {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  height: 100vh;
+  overflow: hidden;
+  font-family: monogram, monospace;
+}
+
+canvas {
+  position: absolute;
+}
+
+#game {
+  inset: 0;
+}
+
+#network {
+  right: 0;
+  bottom: 0;
+  opacity: 0.8;
+}
+
+.start-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #000a;
+  color: #fff;
+  z-index: 1;
+  gap: 1rem;
+}
+
+.start-screen.hidden {
+  display: none;
+}
+
+.start-screen h1 {
+  font-size: 3rem;
+}
+
+.button-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.start-screen button {
+  margin-top: 1rem;
+  padding: 0.5rem 4rem;
+  font-size: 1.75rem;
+  background-color: #fff;
+  color: #000;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.start-screen button.hidden {
+  display: none;
+}
+
+.start-screen button:hover {
+  background-color: #aaa;
+}
+
+.action-container {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  gap: 1rem;
+  z-index: 1;
+  padding: 1rem;
+}
+
+.action-container.hidden {
+  display: none;
+}
+
+.action-container button {
+  padding: 0.5rem 1rem;
+  font-size: 1.25rem;
+  background-color: #fff;
+  color: #000;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
